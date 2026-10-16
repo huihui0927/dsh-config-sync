@@ -108,9 +108,11 @@ async function main () {
       console.log(`DSH_HOME：${r.dshHome}`)
       console.log(`活动 profile：${r.profile}${r.profileExists ? '' : '（目录不存在）'}`)
       console.log(`插件 ${r.plugins.length} 个：`)
-      for (const p of r.plugins) {
-        console.log(`  - ${p.name}@${p.spec}${p.registered ? '' : '  ⚠ 未登记进 bundles，不会加载'}`)
-      }
+        for (const p of r.plugins) {
+          if (p.kind === 'unregistered') console.log(`  - ${p.name}@${p.spec}  ⚠ 已安装但未登记进 bundles，不会加载`)
+          else if (p.kind === 'not-a-plugin') console.log(`  - ${p.name}@${p.spec}  ⚠ 不是 DSH 插件（无 bundle 清单），永远不会加载，建议卸载`)
+          else console.log(`  - ${p.name}@${p.spec}`)
+        }
       console.log('')
       console.log(`默认备份将包含 ${r.wouldArchive} 个文件（类别：${r.categories.join('、')}）`)
       for (const [k, v] of Object.entries(r.byCategory)) console.log(`  ${k}: ${v}`)

@@ -1,5 +1,5 @@
-/**
- * dsh-config-sync — end-to-end tests.
+﻿/**
+ * dsh-config-sync —end-to-end tests.
  *
  * These run against a synthetic DSH home rather than the real one, so they can
  * assert exact counts and never touch the user's actual profile. Run with:
@@ -37,9 +37,21 @@ async function makeFixture () {
     dependencies: {
       'dsh-pet': '0.3.7',
       'dsh-lsp-actions': 'github:PerryLink/dsh-lsp-actions',
+      // A plain CLI tool installed by mistake: no main/exports, no dsh manifest,
+      // no cordis.patch.yml —the "tokenledger" case.
+      tokenledger: '^0.1.6',
     },
     dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'dsh-pet', 'dsh-lsp-actions'] } },
   }, null, 2))
+
+  // Its on-disk shape: a bin-only CLI package with nothing loadable.
+  await mkdir(join(profileDir, 'node_modules', 'tokenledger', 'dist'), { recursive: true })
+  await writeFile(join(profileDir, 'node_modules', 'tokenledger', 'package.json'), JSON.stringify({
+    name: 'tokenledger',
+    version: '0.1.6',
+    type: 'commonjs',
+    bin: { tokenledger: 'dist/index.js' },
+  }))
   await writeFile(join(profileDir, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
   await writeFile(join(profileDir, 'cordis.patch.yml'), '- id: ui-theme\n')
   await writeFile(join(profileDir, 'cordis.patch.yml.bak-1791968365320'), 'litter\n')
@@ -63,7 +75,7 @@ async function makeFixture () {
   // Credentials.
   await writeFile(join(home, '.credentials.yaml'), 'refs:\n  DEEPSEEK_API_KEY: sk-secret-value\n')
 
-  // A plugin vault holding a live token in plain JSON — the case that must NOT
+  // A plugin vault holding a live token in plain JSON —the case that must NOT
   // land in an unencrypted archive.
   await mkdir(join(home, 'workbuddy-vault', 'cn'), { recursive: true })
   await writeFile(
@@ -207,6 +219,26 @@ describe('inventory', () => {
     assert.equal(pet.spec, '0.3.7')
     assert.equal(pet.install, 'dsh-pet@0.3.7')
     assert.equal(pet.registered, true)
+    assert.equal(pet.kind, 'plugin')
+  })
+
+  it('tells a non-plugin dependency apart from an unregistered plugin', async () => {
+    const plan = await planBackup({ dshHome: fixture.home, profile: fixture.profile })
+    const ledger = plan.plugins.find((p) => p.name === 'tokenledger')
+    assert.equal(ledger.kind, 'not-a-plugin', 'a bin-only CLI must not be called "unregistered"')
+    assert.equal(ledger.registered, false)
+
+    // The warning must recommend uninstalling, never registering: there is
+    // nothing loadable to register, and that advice once sent a user to edit
+    // bundles for a package that cannot load.
+    assert.ok(
+      plan.warnings.some((w) => w.includes('tokenledger') && w.includes('建议卸载')),
+      `expected an uninstall recommendation, got: ${JSON.stringify(plan.warnings)}`,
+    )
+    assert.ok(
+      !plan.warnings.some((w) => w.includes('tokenledger') && w.includes('未登记')),
+      'non-plugin deps must not be diagnosed as "unregistered"',
+    )
   })
 
   it('keeps plaintext credential vaults out of an ordinary backup', async () => {
@@ -285,7 +317,7 @@ describe('backup and restore', () => {
 
     const v = await verify(out)
     assert.equal(v.ok, true, JSON.stringify(v.problems))
-    assert.equal(v.pluginCount, 2)
+    assert.equal(v.pluginCount, 3)
   })
 
   it('never stores the credential plaintext in the archive', async () => {
@@ -366,7 +398,7 @@ describe('cli', () => {
   /**
    * Some sandboxes refuse to let Node open the pipes `execFile` needs, and the
    * failure surfaces as `spawn EPERM` before the CLI process ever starts. That
-   * is an environment restriction, not a broken CLI — so these cases skip
+   * is an environment restriction, not a broken CLI —so these cases skip
    * rather than report a defect that does not exist. Run the suite outside such
    * a sandbox (or from a shell directly) to exercise them for real.
    */
@@ -390,7 +422,7 @@ describe('cli', () => {
       const { stdout } = await execFileAsync(process.execPath, [CLI, 'status'], {
         env: { ...process.env, DSH_HOME: fixture.home, DSH_PROFILE: fixture.profile },
       })
-      assert.ok(stdout.includes('插件 2 个'), stdout)
+      assert.ok(stdout.includes('插件 3 个'), stdout)
     } catch (error) {
       if (skipIfUnspawnable(error)) return t.skip('sandbox blocks child process pipes (spawn EPERM)')
       throw error
@@ -426,7 +458,7 @@ describe('cli', () => {
 describe('status', () => {
   it('summarises the local machine', async () => {
     const r = await status({ dshHome: fixture.home, profile: fixture.profile })
-    assert.equal(r.plugins.length, 2)
+    assert.equal(r.plugins.length, 3)
     assert.ok(r.wouldArchive > 0)
     assert.ok(r.categories.includes('profile-config'))
   })
