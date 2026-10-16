@@ -1,0 +1,11 @@
+# Node
+node_modules/
+*.log
+
+# 本地测试与临时产物
+__debug*
+*.zip
+
+# 编辑器
+.vscode/
+.idea/

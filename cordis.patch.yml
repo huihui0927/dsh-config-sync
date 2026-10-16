@@ -1,0 +1,4 @@
+# dsh-config-sync bundle patch — inserts this plugin into a profile's layer stack.
+- insert:
+    - id: dsh-config-sync
+      name: 'dsh-config-sync'

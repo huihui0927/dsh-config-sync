@@ -1,0 +1,50 @@
+{
+  "name": "dsh-config-sync",
+  "version": "1.0.0",
+  "description": "把本机 DSH 的全部插件与设置备份成一个可移植的 .zip 归档，并能批量还原/同步到下一台电脑。Back up every DSH plugin and setting into one portable archive, then restore it onto another machine.",
+  "type": "module",
+  "main": "lib/index.js",
+  "bin": {
+    "dsh-config-sync": "bin/dsh-config-sync.mjs"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "backup",
+    "restore",
+    "sync",
+    "migrate",
+    "profile",
+    "settings"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
